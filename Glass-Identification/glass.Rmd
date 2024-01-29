@@ -1,0 +1,331 @@
+---
+title: "glass"
+output: html_document
+date: "2023-01-07"
+---
+
+```{r}
+library(lubridate)
+
+glass = read.delim("glass.data",  header=TRUE,  sep=",")
+colnames(glass) = c("id", "Ri", "Na","Mg","Al", "Si","K","Ca","Ba","Fe","Type.glass")
+glass_names = c("Type 1", "Type 2", "Type 3", "Type 4", "Type 5", "Type 6", "Type 7")
+# Add a column called "glass_type" to the "glass" data frame
+glass$Glass_name = ifelse(glass$Type.glass == 1, "building_windows_float_processed",
+                           ifelse(glass$Type.glass == 2, "building_windows_non_float_processed",
+                                  ifelse(glass$Type.glass == 3, "vehicle_windows_float_processed",
+                                         ifelse(glass$Type.glass == 4, "Vehicle_windows_non_float_processed",
+                                                ifelse(glass$Type.glass == 5, "containers",
+                                                       ifelse(glass$Type.glass == 6, "tableware",
+                                                              ifelse(glass$Type.glass == 7, "headlamps", NA)))))))
+
+
+```
+
+
+```{r}
+#create a variable that counts the number of missing values in each column
+missing_values <- colSums(is.na(glass))
+
+#create a variable that calculates the total number of values in each column
+total_values <- sapply(glass, function(x) length(x))
+
+#create a variable that calculates the proportion of missing values in each column
+prop_missing <- missing_values/total_values
+prop_missing
+str(glass)
+desc =describe(glass)
+write.csv(desc, "describeST.csv")
+glass$Type.glass = factor(glass$Type.glass)
+
+```
+```{r}
+
+# Create the barplot
+count = ggplot(glass, aes(x =Type.glass )) +
+  geom_bar(aes(y = (..count..), fill = Glass_name)) +
+    xlab("Type of glass") +
+  scale_fill_manual(values = c("red", "green", "blue", "yellow", "purple", "orange", "pink"))
+ggsave("COUNT.png", count)
+
+```
+
+
+```{r}
+library(ggplot2)
+
+# Create a list of plots
+# create scatterplot matrix
+scatterplot <- ggplot(glass, aes(x = Na, y = Mg, color = Si)) +
+  geom_point() +
+  labs(title = "Scatterplot of Sodium and Magnesium colored by Silicon", x = "Sodium (wt.%)", y = "Magnesium (wt.%)") +
+  scale_color_gradient(low = "blue", high = "red")+ theme(plot.title= element_text(face = "bold", size = 20), axis.title.x = element_text(size = 18), axis.title.y = element_text(size = 18))
+
+
+# create scatterplot of Fe vs Al colored by Si
+# create scatterplot of Ri vs Na colored by Mg
+scatterplot2 <- ggplot(glass, aes(x = Ca, y = Ri, color = Ba)) +
+  geom_point() +
+  labs(title = "Scatterplot of Calcium vs Refractive index colored by Barium", x = "Calcium (wt.%)", y = "Refractive Index") +
+  scale_color_gradient(low = "darkblue", high = "lightgreen")+ theme(plot.title= element_text(face = "bold", size = 18), axis.title.x = element_text(size = 18), axis.title.y = element_text(size = 18))
+
+scatterplot4 <- ggplot(glass, aes(x = Fe, y = Ri, color = Al)) +
+  geom_point() +
+  labs(title = "Scatterplot of Refractive Index vs Iron colored by Aluminum", x = "Iron (wt.%)", y = "Refractive Index" )+
+  scale_color_gradient(low = "darkblue", high = "lightgreen")+ theme(plot.title= element_text(face = "bold", size = 20), axis.title.x = element_text(size = 18), axis.title.y = element_text(size = 18))
+
+# combine plots into one figure
+plots <- list(scatterplot, scatterplot2,scatterplot4 )
+
+# Use cowplot package to display the plots in the same figure
+library(cowplot)
+ggsave("my_plots.png", plot_grid(plotlist = plots, ncol = 2), width = 17, height = 14)
+#plot_grid(plotlist = plots, ncol = 2)
+
+```
+
+```{r}
+ggplot(glass, aes(x = Fe, y = Ri, color = as.factor(Type.glass))) +
+  geom_point() +
+  xlab("Iron (%)") +
+  ylab("Reflective index")
+
+```
+
+
+
+```{r}
+library(reshape2)
+
+# Create a pivot table of the data
+pivot = melt(glass, id.vars = "Type.glass", measure.vars = "Fe")
+
+# Create the heatmap
+ggplot(pivot, aes(x = as.factor(Type.glass), y = variable, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "red")
+```
+
+```{r}
+pivot = melt(glass, id.vars = "Type.glass", measure.vars = "Fe")
+
+# Create a new data frame with a row for each type glass category
+categories = data.frame(Type.glass = 1:7)
+
+# Merge the pivot table with the categories data frame
+pivot = merge(pivot, categories, all = TRUE)
+
+# Create the heatmap
+ggplot(pivot, aes(x = as.factor(Type.glass), y = variable, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "red")
+```
+
+
+
+
+
+Based on these guidelines, you can see that the columns "K" and "Ba" have a high degree of skewness (6.457 and 3.359, respectively), indicating that they are skewed to the right. The column "Ca" also has a high degree of skewness (2.012), indicating that it is also skewed to the right.
+
+The columns "K" and "Ba" also have a high degree of kurtosis (52.757 and 12.004, respectively), indicating that they are more peaked than a normal distribution. The column "Ca" has a moderate degree of kurtosis (6.362), indicating that it is also more peaked than a normal distribution.
+
+
+```{r}
+library(gridExtra)
+par(mfrow = c(3, 3))  # Set up the plot window to display 3 rows and 3 columns of plots
+plist <- list()
+
+# Loop through the columns 2 to 9
+for (i in 2:10) {
+  
+   hist(glass[, i], xlab = colnames(glass)[i],col=(2:10),  main=paste("Histogram of", colnames(glass)[i]))
+
+}
+dev.copy(png,file = "plots.png", width = 15, height = 10, units = "cm",res = 300)
+dev.off()
+
+par(mfrow=c(1,1))
+
+
+# save the combined plot
+```
+
+
+```{r}
+library(moments)
+skew_glass <- sapply( glass[, 2:10], skewness)
+kurt_glass <- sapply( glass[, 2:10], kurtosis)
+glass_table <- data.frame(colnames(glass[, 2:10]), skew_glass, kurt_glass)
+colnames(glass_table) <- c("Variable", "Skewness", "Kurtosis")
+glass_table
+```
+
+```{r}
+library(gridExtra)
+par(mfrow = c(3, 3))  # Set up the plot window to display 3 rows and 3 columns of plots
+plist <- list()
+colors <- c("blue", "red", "green", "purple", "cyan","orange","pink","gray","black")
+# Loop through the columns 2 to 9
+for (i in 2:10) {
+  
+  plist[[i-1]] <-  ggplot(glass, aes_string(colnames(glass)[i])) +
+              geom_histogram(binwidth = 0.5) +
+              scale_fill_gradient(low = "blue", high = "red") +
+
+              xlab(colnames(glass)[i]) +
+              ggtitle(paste("Histogram of", colnames(glass)[i]))
+
+}
+par(mfrow=c(1,1))
+
+library(cowplot)
+ggsave("my_plots.png", plot_grid(plotlist = plist, ncol = 3), width = 17, height = 14)
+#plot_grid(plotlist = plots, ncol = 2)
+```
+
+
+```{r}
+# Select the columns to include in the correlation matrix
+df_corr <- glass[, 2:10]
+
+# Calculate the correlation matrix
+corr_matrixG <- cor(df_corr)
+
+# Create the heatmap
+library(ggplot2)
+library(reshape2)
+library(RColorBrewer)
+
+# Melt the correlation matrix
+corr_matrix_melt <- melt(corr_matrixG)
+
+# Set the color palette
+palette <- colorRampPalette(rev(brewer.pal(9, "RdYlBu")))
+
+# Create the heatmap
+corM = ggplot(corr_matrix_melt, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +
+  scale_fill_gradientn(colors = palette(100), limits = c(-1, 1), breaks = seq(-1, 1, 0.4)) +
+    geom_text(aes(label = sprintf("%.2f", value)), color = "black", size = 3) +
+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Correlation Heatmap",
+       x = "Variables",
+       y = "Variables") +
+  coord_fixed()
+ggsave("corr.png", corM)
+
+
+```
+```{r}
+options(resize = "width: 8in, height: 8in")
+corr_matrixG
+```
+
+As can be seen from the heatmap (and the correlation matrix), the strongest positive correlations between the different glass attributes are: 
+Ca/RI → 0.810403
+Ba/Al → 0.479404
+Ba/Na → 0.326603
+K/Al → 0.325958
+
+Noticeable negative correlations can be observed with:
+
+Si/RI = -0.542052
+Ba/Mg = -0.492262
+Al/Mg = -0.481798
+Ca/Mg = -0.443750
+
+
+```{r}
+library(tidyr)
+library(GGally)
+library(gridExtra)
+
+pair = ggpairs(glass[, 2:10], size = 2, width = 15, height = 10)
+plots2 = list(pair, corM)
+ggsave("distTemp.png", plot_grid(plotlist = plots2, ncol = 2), width = 33, height = 15)
+
+```
+```{r}
+library(gridExtra)
+library(cowplot)
+
+# Set up a layout with 2 rows and 4 columns
+
+
+par(mfrow = c(2, 4))
+
+# Loop through the columns 3 to 10
+for (i in 3:10) {
+  # Create a scatter plot for the current column
+  plot(glass[[i]], glass$Ri, xlab = colnames(glass)[i], ylab = " (RI)" ,
+       main = paste("ScatterPlot of", colnames(glass)[i], "vs. (RI)"))
+  abline(lm(glass$Ri ~ glass[[i]], data = mtcars), col = "blue")
+
+  
+}
+
+
+#plot_grid(plotlist = plots, ncol = 2)
+
+
+for (i in 3:10) {
+  # Create a scatter plot for the current column
+  plot(glass[[i]], glass$Type.glass, xlab = colnames(glass)[i], ylab = " type of glass",
+       main = paste("Plot of", colnames(glass)[i], "vs Glass"))
+    abline(lm(glass$Type.glass ~ glass[[i]], data = mtcars), col = "blue")
+  
+}
+
+#plot_grid(plotlist = plots, ncol = 2)
+```
+
+```{r}
+library(gridExtra)
+library(cowplot)
+
+# Set up a layout with 2 rows and 4 columns
+sc1 <- list()
+sc2 <- list()
+
+par(mfrow = c(2, 4))
+
+# Loop through the columns 3 to 10
+for (i in 3:10) {
+  # Create a scatter plot for the current column
+sc1[[i-1]] <-   plot(glass[[i]], glass$Ri, xlab = colnames(glass)[i], ylab = " (RI)", 
+       main = paste("Scatter Plot of", colnames(glass)[i], "vs. (RI)"))
+  
+}
+ggsave("my_plots2.png", plot_grid(plotlist = sc1, ncol =4 ), width = 17, height = 14)
+
+
+#plot_grid(plotlist = plots, ncol = 2)
+
+
+for (i in 3:10) {
+  # Create a scatter plot for the current column
+ sc2[[i-1]] <-   plot(glass[[i]], glass$Type.glass, xlab = colnames(glass)[i], ylab = " type of glass", 
+       main = paste("Scatter Plot of", colnames(glass)[i], "vs. Glass"))
+  
+}
+
+ggsave("my_plots3.png", plot_grid(plotlist = sc2, ncol = 4), width = 17, height = 14)
+#plot_grid(plotlist = plots, ncol = 2)
+```
+
+To determine which oxide best determines the refractive index (RI) from these scatterplots, you can look at the strength and direction of the relationship between each oxide and the RI. A strong relationship means that the points on the scatterplot are closely concentrated around a straight line, while a weak relationship means that the points are more scattered. You can also look at the direction of the relationship by looking at the slope of the line. A positive slope means that as the values of the oxide increase, the values of the RI also tend to increase. A negative slope means that as the values of the oxide increase, the values of the RI tend to decrease.
+
+You can also use statistical measures such as the correlation coefficient to quantify the strength and direction of the relationship between each oxide and the RI. The correlation coefficient ranges from -1 to 1, with a value of 1 indicating a strong positive relationship, a value of -1 indicating a strong negative relationship, and a value of 0 indicating no relationship.
+
+By visually assessing the scatterplots and possibly using statistical measures, you can determine which oxide(s) best predict the refractive index.
+
+
+
+
+
+
+
+
+
