@@ -1,0 +1,319 @@
+---
+title: "nino"
+output: html_document
+date: "2022-12-22"
+---
+```{r}
+library(lubridate)
+library(ggcorrplot)
+library(reshape2)
+library(dplyr)
+library(psych)
+library(gridExtra)
+library(GGally)
+library(corrplot)
+library(cowplot)
+
+ElNino = read.delim("tao-all2.dat",  header=FALSE,  sep=" ", na.strings = c("."))
+colnames(ElNino) = c("obs", "year", "month","day","date", "latitude","longitude","zon.winds","mer.winds","humidity","air.temp","s.s.temp")
+```
+
+```{r}
+nrow(ElNino)
+ElNino$date= ymd(ElNino$date)
+ElNino$longitude =ElNino$longitude %% 360
+
+```
+
+```{r}
+#create a variable that counts the number of missing values in each column
+missing_values <- colSums(is.na(ElNino))
+
+#create a variable that calculates the total number of values in each column
+total_values <- sapply(ElNino, function(x) length(x))
+
+#create a variable that calculates the proportion of missing values in each column
+prop_missing <- missing_values/total_values
+prop_missing
+ElNino = na.omit(ElNino)
+ElNino$Hemisphere = ifelse(ElNino$latitude < 0.0,"South","North")
+
+
+
+
+#write.csv(ElNino, "nino.csv")
+```
+```{r}
+stats =describe(ElNino[6:12])
+write.csv(stats, "describe.csv")
+
+```
+
+
+
+```{r}
+ElNino
+dist = ggplot(data = ElNino, aes(x = longitude, y = latitude, color = Hemisphere)) +
+  geom_point(shape = 21, size = 5) +
+  scale_color_discrete(name = "Hemisphere") +
+  ggtitle("Distribution of Buoys Across Hemispheres") +
+  xlab("Longitude") +
+  ylab("Latitude")+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text(size = 20), 
+        axis.title.y = element_text(size = 20), 
+        axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20),
+        legend.key.width = unit(3, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 25))
+
+
+temp = ggplot(data = ElNino, aes(x = year, y = s.s.temp )) +
+  geom_point() +
+  scale_color_discrete(name = "Hemisphere") +
+  ggtitle("Sea Surface temperature changes by year") +
+  xlab("Year") +
+  ylab("Sea surface temperature")+ theme(plot.title = element_text(size = 25, face = "bold"),  axis.title.x = element_text(size = 20), axis.title.y = element_text(size = 20), axis.text.x=element_text(size=20), axis.text.y=element_text(size=20) )
+
+plots =list(dist, temp)
+
+ggsave("distTemp.png", plot_grid(plotlist = plots, ncol = 2), width = 33, height = 15)
+
+#grid.arrange(c1,c2, ncol=1, nrow =2)
+
+
+```
+
+
+```{r}
+#reduce the size of correlation matrix
+corr_matrix <- cor(ElNino %>% select_if(is.numeric) %>% select(-obs))
+
+corP = ggcorrplot(corr_matrix, hc.order = TRUE, type = "upper", lab = TRUE,title = "Correlation Heatmap", lab_size = 9, method = "square")+ theme_classic()+ theme(plot.title = element_text(size = 25, face = "bold"),
+                                                                                                                                                          axis.text.x=element_text(size=20), axis.text.y=element_text(size=20) , legend.key.width = unit(3, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 25) )
+ggsave("correlation.png",corP , width = 17, height = 14) 
+
+```
+
+```{r}
+
+options(resize = "width: 8in, height: 6in")
+corr_matrix
+```
+
+
+
+
+
+
+
+
+
+This plot shows the relationship between sea surface temperature (s.s.temp) and air temperature (air.temp) for different longitudes and latitudes in the El Nino dataset. The color of the points indicates the longitude of the measurement, with blue representing lower longitudes and red representing higher longitudes. The shape of the points indicates the latitude of the measurement, with triangles representing higher latitudes and circles representing lower latitudes.
+
+One key feature of the plot is that there is a positive relationship between s.s.temp and air.temp, as the points generally form a diagonal line from the bottom left to the top right of the plot. This indicates that, in general, higher s.s.temp values are associated with higher air.temp values.
+
+Another key feature is that there is some variation in the strength of this relationship depending on the longitude and latitude of the measurement. For example, the points near the center of the plot (representing measurements with longitudes around 250 and latitudes around 0) show a stronger positive relationship between s.s.temp and air.temp compared to points near the edges of the plot. This suggests that the relationship between s.s.temp and air.temp may depend on the position of the measurement.
+
+This scatterplot shows the relationship between sea surface temperature (s.s.temp) and air temperature (air.temp) in the El Nino dataset. The color of the points represents the longitude of the measurement and the shape of the points represents the latitude of the measurement, with the points being divided into four equally sized groups based on latitude.
+
+It appears that there is a positive correlation between sea surface temperature and air temperature, as the points tend to follow a diagonal pattern from the bottom left to the top right of the plot. Additionally, the points tend to be more densely concentrated around the center of the plot, suggesting that there is a higher concentration of measurements with moderate values of both sea surface temperature and air temperature.
+
+There is also some dependence of temperature variations on position, as the color and shape of the points show. For example, the points with red color (representing measurements with higher longitudes) tend to be concentrated towards the bottom left of the plot, while the points with blue color (representing measurements with lower longitudes) tend to be concentrated towards the top right of the plot. Similarly, the points with different shapes tend to be clustered together, with the points with triangle shapes (representing measurements with lower latitudes) being concentrated towards the bottom of the plot and the points with diamond shapes (representing measurements with higher latitudes) being concentrated towards the top of the plot. This suggests that temperature variations may be influenced by both longitude and latitude.
+```{r}
+library(ggplot2)
+#see if there's any dependence on position
+# points will be colored according to longitude, with longitudes towards the west (e.g. closer to -180 degrees) being colored blue and longitudes towards the east (e.g. closer to 180 degrees) being colored red
+
+# Create a list of plots
+plots <- list(
+  ggplot(ElNino, aes(x = s.s.temp, y = air.temp, color = humidity)) +
+    geom_point() +
+    labs(title = "Scatterplot of Sea Temperature vs Air Temperature colored by humidity levels", x = "Sea surface temperature (°C)", y = "Air temperature (°C)") +
+    scale_color_gradient(low = "blue", high = "red")+ theme(plot.title= element_text(face = "bold", size = 15)),
+  
+  
+  ggplot(ElNino, aes(x = zon.winds, y = mer.winds, color = air.temp)) +
+    geom_point() +
+    labs(title = "Scatterplot of Zonal winds Vs Meridonial winds colored by air temperature",x = "Zonal Winds", y = "Meridional Winds (m/s)") +
+    scale_color_gradient(low = "blue", high = "red")+ theme(plot.title= element_text(face = "bold", size = 15)) ,
+  
+  ggplot(ElNino, aes(x = mer.winds, y = s.s.temp, color = humidity)) +
+    geom_point() +
+    labs(title = "Scatterplot meridonial winds Vs sea temperature colored by humidity",x = "Meridional Winds (m/s)", y = "Sea Surface Temperature (°C)") +
+    scale_color_gradient(low = "darkblue", high = "lightgreen")+ theme(plot.title= element_text(face = "bold", size = 15)),
+  
+  
+  ggplot(ElNino, aes(x = latitude, y = s.s.temp, color = humidity)) +
+    geom_point() +
+    labs(title = "Scatterplot of Sea Surface Temperature vs Latitude colored by humidity",x = "Latitude", y = "Sea surface teperature (°C)") +
+    scale_color_gradient(low = "darkblue", high = "lightgreen")+ theme(plot.title= element_text(face = "bold", size = 15))
+)
+
+# Use cowplot package to display the plots in the same figure
+library(cowplot)
+ggsave("my_plots.png", plot_grid(plotlist = plots, ncol = 2), width = 17, height = 14)
+#plot_grid(plotlist = plots, ncol = 2)
+
+```
+
+```{r}
+ss =  ggplot(ElNino, aes(x = s.s.temp, y = air.temp, color = longitude)) +
+    geom_point() +
+    labs(title = "Scatterplot of Sea Surface Temperature vs air temperature colored by longitude",x = "Sea surface teperature (°C)", y = "Air teperature (°C)") +
+    scale_color_gradient(low = "darkblue", high = "lightgreen")+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text(size = 20), 
+        axis.title.y = element_text(size = 20), 
+        axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20),
+        legend.key.width = unit(3, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 25))
+
+ss2 =  ggplot(ElNino, aes(x = s.s.temp, y = air.temp, color = latitude)) +
+    geom_point() +
+    labs(title = "Scatterplot of Sea Surface Temperature vs air temperature colored by latitude",x = "Sea surface teperature (°C)", y = "Air teperature (°C)") +
+    scale_color_gradient(low = "darkblue", high = "lightgreen")+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text(size = 20), 
+        axis.title.y = element_text(size = 20), 
+        axis.text.x = element_text(size = 20), 
+        axis.text.y = element_text(size = 20),
+        legend.key.width = unit(3, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 25))
+
+plots2 = list(ss, ss2)
+ggsave("seaAirr.png", plot_grid(plotlist = plots2, ncol = 2, rel_widths = c(1,1), rel_heights = c(2,2)), width = 33, height = 15)
+
+```
+
+
+
+```{r}
+# Load the car package
+library(car)
+
+# Fit a multiple linear regression model using all the predictor variables
+model <- lm(s.s.temp ~ ., data = ElNino)
+
+# Calculate the VIF for each predictor variable
+vif(model)
+```
+
+
+
+```{r}
+#check for normality
+
+vec <- ElNino$s.s.temp
+
+# Create a histogram
+hist(vec)
+
+# Create a Q-Q plot
+qqnorm(vec)
+qqline(vec)
+
+```
+
+
+
+
+```{r}
+logit2 <- glm(s.s.temp~(mer.winds+zon.winds+humidity+air.temp+longitude+latitude+date)*(mer.winds+zon.winds+humidity+air.temp+longitude+latitude+date),data = ElNino)
+options(scipen=999)
+
+summary(logit2)
+
+
+
+par(mfrow = c(2, 2))
+glmplot = plot(logit2)
+ggsave("glmPlot.png",glmplot) 
+
+```
+```
+
+
+
+NOT SURE ABOUT THE BELOW PART !!!!!!!
+
+Residuals measure the variability in the response not explained by the model. There are several ways to measure residual. For most of our analysis we used the definition of residual as the observed data minus the fitted data (plot1). But here we also show two results of scaling residuals (which are helpful in identifying outliers and extreme values). Standardized Residuals (plot2) show the residual standardized by it's standard deviation. PRESS residuals (plot3) shows how well the model may perform in predicting new data.
+
+```{r, echo=FALSE}
+leverage=lm.influence(logit3)$hat
+#MS Residual
+MSRes=summary(logit3)$sigma^2
+SSRes=sum((logit3$residuals-mean(logit3$residuals))^2)
+#standardized residuals
+standardized_res=logit3$residuals/sqrt(MSRes)
+#PRESS residual
+PRESS_res=logit3$residuals/(1 - leverage)
+par(mfrow=c(1,3))
+plot(logit3$fitted.values,logit3$residuals,pch=20,ylab="Residual",xlab="Fitted Value", main="Residual")
+abline(h=0,col="grey")
+plot(logit3$fitted.values,standardized_res,pch=20,ylab="Standardized Residual",xlab="Fitted Value", main="Standardized Residual")
+abline(h=0,col="grey")
+plot(logit3$fitted.values,PRESS_res,pch=20,ylab="PRESS Residual",xlab="Fitted Value", main="PRESS Residual")
+abline(h=0,col="grey")
+```
+
+## Checking Linearity and Equal variance
+We reevaluate all variables in the dataset to see if they are viable options to remain covariates in our final model. To do this we plot each covariate against the residuals in order to determine if and how they need to be transformed. Each are expected to be linear and equal variance. After reviewing these plots we can see that the Post.Month needs to be transformed because of its nonlinearity, it violates the linearity of errors assuption.  
+  
+```{r, echo=FALSE}
+numeric_cols <- sapply(ElNino, is.numeric) # determine which columns are numeric
+
+numeric_column_names <- names(ElNino[, numeric_cols]) # get the names of those columns
+
+numeric_dataset <- ElNino[,sapply(ElNino, is.numeric)]
+par(mfrow=c(2,3))
+
+for(name in numeric_column_names) {
+  plot(numeric_dataset[[name]][1:length(logit3$residuals)], logit3$residuals, ylab="Residuals", xlab=name)
+  abline(h=0,col="grey")
+}
+```
+
+
+
+
+
+
+
+## Check Normality Assumption
+To check this assumption we plot each covariate against the residual. We use the QQ plot to check the normality assumption. On the plot we plot the residuals for the model and show the QQ line to assist in visualizing the normal distribution. The plot is shown below. From this we can see that the residual plot appears to be a light tailed distribution.  The histogram below confirms this.
+  
+```{r, echo=FALSE}
+{
+  par(mfrow=c(1,2))
+  # QQ Plot
+  qqnorm(logit3$residuals) #plots residuals
+  qqline(logit3$residuals) #draws line
+  
+  # Histogram of Residuals
+  hist(logit3$residuals, xlab="Residuals", main="Histogram of Residuals", breaks=20)
+}
+```
+
+
+
+```{r}
+vif(logit3)
+```
+```{r}
+anova_logit3 <- lm(s.s.temp~mer.winds+zon.winds+humidity+air.temp+longitude+latitude+date,data = ElNino)
+summary(anova_logit3)
+
+```
+```
+
