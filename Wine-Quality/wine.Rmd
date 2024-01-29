@@ -1,0 +1,484 @@
+---
+title: "wine"
+output: html_document
+date: "2023-01-09"
+---
+
+```{r}
+library(ggplot2)
+library(scales)
+library(tidyr)
+library(dplyr)
+library(psych)
+library(gridExtra)
+library(GGally)
+library(corrplot)
+library(ggcorrplot)
+library(cowplot)
+
+
+wine = read.delim("winequality-red.csv",  header=TRUE,  sep=";")
+wine
+summary(wine)
+str(wine)
+```
+
+Input variables (based on physicochemical tests):
+
+fixed acidity
+volatile acidity
+citric acid
+residual sugar
+chlorides
+free sulfur dioxide
+total sulfur dioxide
+density
+pH
+sulphates
+alcohol
+Output variable (based on sensory data):
+
+quality (score between 0 and 10)
+
+What is/are the main feature(s) of interest in your dataset?
+The main feature of the dataset is the quality variable which gives us a result describing the wine quality. The quality variable values are based on the combination of all other variables. This variable can help us identify and set limits on what characteristics are popular in wine.
+What other features in the dataset do you think will help support your
+investigation into your feature(s) of interest?
+We find that a few variables appear to be left skewed on the histogram. These variables are sulphates, total sulfur dioxide and residual sugar. These variables will need to be transformed when plotting bivariate plots.
+we find from the above summary that all variables are numerical and that there are no categorical variables in the dataset.We can make a few more observations such as that the density values appear to tightly clustered, there is a large difference between the 3rd quantile and max suplhate value, meaning the max value could be a outlier(same could apply for residual sugar). We can also see that the range of the quality variable is from 3 to 8.
+
+based on the skew values, the residual sugar, chlorides, and sulphates are very skewed.
+he red wine dat has 1599 observations and 12 variables.
+
+There is no missing value
+
+All variables except quality are numeric, quality - the target variable - is an integer.
+
+```{r}
+a=table(wine$quality)
+b=table(wine$quality)/nrow(wine)*100
+c=rbind(a,b)
+c=data.frame(c)
+rownames(c)=c('Number of Wines','%')
+colnames(c)=c(3,4,5,6,7,8)
+c=round(c,digits = 2)
+c
+```
+
+```{r}
+missing_values <- colSums(is.na(wine))
+
+#create a variable that calculates the total number of values in each column
+total_values <- sapply(wine, function(x) length(x))
+
+#create a variable that calculates the proportion of missing values in each column
+prop_missing <- missing_values/total_values
+prop_missing
+```
+
+
+
+
+The plot of fixed acidity shows that the maximum number of values lie between 6.5 and 7.5. We also find that between 14 to 15.5 we have a very small number of values, these are likely special conditions that not likely to occur often. Depending on our analysis, it might be better to classify these points ass outliers when making predictions
+
+hIST OF VOLATILE ACIDITY We can see that the majority of the values lie between 0.55 to 0.65, if we consider only the values between 0.1 and 1.15, the data is almost a bimodal distribution. The values above 1.15 should be examined to identify the quality level associated with them, they will be looked at as outliers since they occur less than 20 times.
+
+The histogram has a short right tail but no transformations will be applied. Most of the citric acid values are concentrated between 0.025 and 0.075.
+
+we can see from the above plot and standard deviation that the data is closely clustered together.We also see a right-skewed distribution. A transformation is applied to obtain a normal distribution.
+
+We see a right skewed distribution with the chlorides data. We also see that the highest count of values occur between the 0.75 to 0.85 values of chlorides. While the data appears to be right skewed, there might be a case for values greater than 0.16 almost being outliers but this needs to be examined further.
+The right skewed histogram is transformed into a normal distribution by using a reciprocal of cube root transformation. This is the only transformation that gives a normal distribution that is not negative.
+
+The histogram above shows that the distribution is right skewed. The highest value here is 289. This value can be considered to be an outlier. This can be said because 289 is greater than Q1+(1.5*IQR), which is 82.
+The right skewed histogram is transformed into a normal distribution by using a log10 transformation. This transformation will be used for future predictions.
+
+density, The histogram appears to be normally distributed. We can see from the histogram that the highest number of values occur between 0.9965 to 0.9975. The normal distribution can also be explained by the mean, median and mode values being close to each other.
+
+We can see that the pH values are normally distributed. The highest number of values are seen between 3.25 to 3.35. The mean, median and mode are also close to eachother which corresponds with the normal distribution.
+
+We can see from above that the histogram is right skewed. There largest value of 1.95 is greater than Q1+(1.5*IQR), which is 0.82. So 1.95 can be classified as an outlier. The left skewed distribution can be explained by the mean being greater than the median and mode(0.57-0.625).
+
+slightly right skewed.The maximum count of values occur betwen 9.25 and 9.75. The right skewness is also shown in the summary where the mean is greater than the median and mode.
+
+```{r}
+g1 = ggplot(wine,aes(alcohol)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    title = "Density Plots of all the chemical attributes",
+    x="Fixed acidity",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+  
+g2=ggplot(wine,aes(volatile.acidity)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="Volatile acidity",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+g3=ggplot(wine,aes(citric.acid)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="Citric Acid",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+g4=ggplot(wine,aes(residual.sugar)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="Residual sugar",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+g5=ggplot(wine,aes(chlorides)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="Chlorides",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+g6=ggplot(wine,aes(free.sulfur.dioxide)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="Free sulfur dioxide",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+g7=ggplot(wine,aes(total.sulfur.dioxide)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="Total sulfur dioxide",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+g8=ggplot(wine,aes(density)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="Density",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+g9=ggplot(wine,aes(pH)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="PH",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+g10=ggplot(wine,aes(sulphates)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="Sulphates",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+g11=ggplot(wine,aes(alcohol)) + 
+  geom_density(fill="#1579D2",color="#1579D2")+
+  labs(
+    x="Alcohol",
+    y="Density"
+  )+ 
+  theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text( face = "bold"), 
+        axis.title.y = element_text( face = "bold"), 
+        axis.text.x = element_text(size = 15), 
+        axis.text.y = element_text(size = 15),
+      )
+
+
+plots =list(g1, g2, g3, g4,g5,g6,g7,g8,g9,g10,g11)
+
+ggsave("DensityPlots.png", plot_grid(plotlist = plots, ncol = 2), width = 20, height = 15)
+
+grid.arrange(g1, g2, g3, g4,g5,g6,g7,g8,g9,g10,g11, ncol=3, nrow =4)
+
+```
+
+
+```{r}
+c1 =ggplot(wine, aes(quality))+geom_bar(fill="#1579D2",color="#1579D2")+
+  labs(
+  title="Bar chart of wine quality",
+  subtitle="The quality of wine follows normal distribution with the majority of wine with medium quality",
+  x="Quality",
+  y="Count"
+)
+
+correlation=cor(wine)
+
+
+c2 =ggcorrplot(correlation, hc.order = TRUE, 
+           type = "upper", 
+           lab = TRUE, 
+           lab_size = 9, 
+           method="square", 
+           title="Correlation map of redwine dataset")+ theme_classic()+ 
+   theme(plot.title = element_text(size = 30, face = "bold"),  
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 30),
+        axis.title.x = element_text(size = 30), 
+        axis.title.y = element_text(size = 30), 
+        axis.text.y = element_text(size = 30),
+        legend.key.width = unit(4, "cm"), 
+        legend.key.height = unit(4, "cm"),
+        legend.text = element_text(size = 30),
+        legend.title = element_text(size = 30))
+
+
+ggsave("bar.png",c1)
+ggsave("Corr.png", c2 , width = 20, height = 20)
+
+#grid.arrange(c1,c2, ncol=1, nrow =2)
+```
+the red wine quality data is unbalanced, with a large majority of wines fall into quality 5 and 6, less than 4% of the overall sample is under 5, and less than 14 is above 6.
+
+
+We find from the correlation plots above that the density and fixed acidity have the highest correlation of 0.668. We also find high correlations (>0.5) between the following plots 1. fixed acidity and citric acid 2. total sulphur dioxide and free sulphur dioxide 3. Alcohol and quality 4. fixed acidity and density
+
+We also find correlation plots with high negative correlation values(>-0.5). 1. pH vs fixed.acidity 2. pH vs citric acid 3. citric acid vs volatile acid
+
+This plot shows a trend where citric acid values increase with higher fixed.acidity values. This is to be expected as citric acid is often added to increase acidity.
+
+Citric acid and fixed acidity have the highest positive correlation. This is because, the increase in citric acid content increases the fixed acidity value. The correlation value is 0.672 which is the highest correlation value in this plot.
+
+#Multivariate plots 
+
+We can see from this relationship that average and good quality wine have nearly the same pH values. We can also see a negative relationship where the citric acid content increases as the pH decreases.
+
+we can see the variation of citric acid with sulphates above. Based on the quality levels, the sulphate values almost tend to increase with citric acid values.
+
+we can see the variation of density with citric acid. We see that for each quality level, the fixed acidity and density values have a positive relationship.
+
+```{r}
+wine$quality_levels<-cut(wine$quality, c(2,5,7,9), right=FALSE)
+wine$quality_labels <- as.factor(wine$quality_levels)
+levels(wine$quality_labels) <- c('Bad','Average','Good')
+```
+
+We know from earlier plots that alcohol and quality are positively correlated to each other. We can also notice that most points in the plot have quality values of 5,6 and 7. We can see that higher density values and low alcohol values have a quality level of 5 and 6. For quality levels of 7 and 8 we see lower density values and higher alcohol content values. The density of wine depends on concentration of alcohol, sugar and other dissolved content.
+
+```{r}
+p1 <- ggplot(aes(x=citric.acid, y=pH), data= subset(wine,!is.na(wine$pH)))+
+   labs(
+  title="Scatterplot of Citric acid Vs PH factorized by quality of wine(Bad - Average - Good)",
+)+
+  geom_point(aes(color=factor(quality) ))+
+  geom_smooth(method='lm')+
+  facet_wrap(~quality_labels, scales = "free")+
+  
+  scale_color_brewer(type='qual', guide = guide_legend(title.size = 25, label.size = 25))+
+    theme(plot.title = element_text(size = 30, face = "bold"),  
+        axis.title.x = element_text(size = 30), 
+        axis.title.y = element_text(size = 30), 
+        axis.text.x = element_text(size = 30), 
+        axis.text.y = element_text(size = 30),
+        legend.key.width = unit(2, "cm"), 
+        legend.key.height = unit(2, "cm"),
+          strip.text.x = element_text(size = 35),
+        strip.text.y = element_text(size = 35),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20))
+
+p2 = ggplot(aes(x=citric.acid, y=log10(sulphates)), data= wine)+
+   labs(
+  title="Scatterplot of Citric acid Vs log transformed sulphates of factorized by quality of wine (Bad - Average - Good)",
+)+
+  geom_point(aes(color=factor(quality)))+
+  geom_smooth(method='lm')+
+  facet_wrap(~quality_labels, scales = "free")+
+  scale_color_brewer(type='qual', guide = guide_legend(title.size = 25, label.size = 25))+
+    theme(plot.title = element_text(size = 30, face = "bold"),  
+        axis.title.x = element_text(size = 30), 
+        axis.title.y = element_text(size = 30), 
+        axis.text.x = element_text(size = 30), 
+        axis.text.y = element_text(size = 30),
+        legend.key.width = unit(2, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20),
+          strip.text.x = element_text(size = 35),
+        strip.text.y = element_text(size = 35))
+p3 = ggplot(aes(x=density, y=fixed.acidity), data= wine)+
+   labs(
+  title="Scatterplot of density Vs fixed acidity factorized by quality of wine (Bad - Average - Good)",
+)+
+  geom_point(aes(color=factor(quality)))+
+  geom_smooth(method='lm')+
+  facet_wrap(~quality_labels, scales = "free")+
+  scale_color_brewer(type='qual', guide = guide_legend(title.size = 25, label.size = 25))+
+    theme(plot.title = element_text(size = 30, face = "bold"),  
+        axis.title.x = element_text(size = 30), 
+        axis.title.y = element_text(size = 30), 
+        axis.text.x = element_text(size = 30), 
+        axis.text.y = element_text(size = 30),
+        legend.key.width = unit(2, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20),
+          strip.text.x = element_text(size = 35),
+        strip.text.y = element_text(size = 35))
+
+plots =list(p1, p2, p3)
+
+ggsave("Multi.png", plot_grid(plotlist = plots, ncol = 1, rel_widths = c(1,1), rel_heights = c(2,2)), width = 40, height = 25)
+```
+Multivariate Analysis
+Talk about some of the relationships you observed in this part of the
+investigation. Were there features that strengthened each other in terms of
+looking at your feature(s) of interest?
+FROM SCATTER PLOTS:
+
+We examined the relationship between variables that have a high correlation with quality. By dividing the quality values into 3 different sections, we observed if the relationship between these variables change between quality levels. In most cases the relationship remained consistent between quality levels.
+
+we examined the range of the values with respect to quality levels. X range and y range of values in different quality levels almost remained the same.
+
+We obtained the relationship between different variables:
+
+fixed.acidity and density have an expontential relationship.
+fixed.acidity and citric have an expontential relationship. 3 suplhates and citric acid have an weak poistive relationship.
+pH and citric acid have a negative relationship.
+FROM BOXPLOTS The boxplots provided a better understanding of how the variables change with quality levels. The first four variables have a high correlation with quality. The remaining variables have poor correlation with quality but these values can be assumed for these variables.
+
+1.High alcohol content 2 High fixed acidity 3.High citric acid 4.High sulphate content. 5.low chlorides 6 low volatile acidity 7.medium free sulfur dioxide 8.medium total sulfurd dioxide 9.low density 10 low pH 11.medium residual sugar
+
+Were there any interesting or surprising interactions between features?
+One suprising interaction was between density and alcohol. It is assumed that density is dependent on the concentration of alcohol, residual sugars and dissolved content. So it was suprising to see a negative correlation between density and alcohol. It was also believed that the values will be segregated across quality levels. But we see that quality value of 7 has the same alcohol content and density values as quality value of 6 and 5. This is hard to explain. The correlation between alcohol and quality is 0.476 maybe a higher correlation value would have resulted in greater segregation of data.
+
+```{r}
+t1 =ggplot(aes(fixed.acidity, citric.acid), data=wine)+ labs(
+  title="Scatterplot of fixed acid Vs  citric acid",
+)+
+  geom_point()+
+  geom_smooth(method='lm')+
+    theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text(size = 30), 
+        axis.title.y = element_text(size = 30), 
+        axis.text.x = element_text(size = 30), 
+        axis.text.y = element_text(size = 30),
+        legend.key.width = unit(2, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20))
+t2= ggplot(aes(log10(alcohol), density), data=wine)+ labs(
+  title="Scatterplot of density Vs log transformed alcohol",
+)+
+  geom_point()+
+  geom_smooth(method='lm')+
+    theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text(size = 30), 
+        axis.title.y = element_text(size = 30), 
+        axis.text.x = element_text(size = 30), 
+        axis.text.y = element_text(size = 30),
+        legend.key.width = unit(2, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20))
+t3= ggplot(aes(pH, density), data=wine)+ labs(
+  title="Scatterplot of PH Vs density",
+)+
+  geom_point()+
+  geom_smooth(method='lm')+
+    theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text(size = 30), 
+        axis.title.y = element_text(size = 30), 
+        axis.text.x = element_text(size = 30), 
+        axis.text.y = element_text(size = 30),
+        legend.key.width = unit(2, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20))
+t4= ggplot(aes(fixed.acidity, density), data=wine)+ labs(
+  title="Scatterplot of fixed acidity Vs density",
+)+
+  geom_point()+
+  geom_smooth(method='lm')+
+    theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text(size = 30), 
+        axis.title.y = element_text(size = 30), 
+        axis.text.x = element_text(size = 30), 
+        axis.text.y = element_text(size = 30),
+        legend.key.width = unit(2, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20))
+t5= ggplot(aes( density, pH), data=wine)+ labs(
+  title="Scatterplot of density vS PH",
+)+
+  geom_point()+
+  geom_smooth(method='lm')+
+    theme(plot.title = element_text(size = 25, face = "bold"),  
+        axis.title.x = element_text(size = 30), 
+        axis.title.y = element_text(size = 30), 
+        axis.text.x = element_text(size = 30), 
+        axis.text.y = element_text(size = 30),
+        legend.key.width = unit(2, "cm"), 
+        legend.key.height = unit(2, "cm"),
+        legend.text = element_text(size = 20),
+        legend.title = element_text(size = 20))
+
+plots =list(t1, t2, t3, t4, t5)
+
+ggsave("TRENDS.png", plot_grid(plotlist = plots, ncol = 1, rel_widths = c(1,1), rel_heights = c(2,2)), width = 18, height = 18)
+
+```
+
